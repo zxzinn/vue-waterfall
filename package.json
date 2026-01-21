@@ -1,0 +1,57 @@
+{
+  "name": "@zxzinn/vue-waterfall",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "A performant, flexible waterfall/masonry layout component for Vue 3",
+  "author": "zxzinn",
+  "license": "MIT",
+  "homepage": "https://github.com/zxzinn/vue-waterfall#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxzinn/vue-waterfall.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zxzinn/vue-waterfall/issues"
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "waterfall",
+    "masonry",
+    "layout",
+    "grid",
+    "responsive",
+    "virtual-scroll",
+    "pinterest"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist",
+    "prepublishOnly": "pnpm run build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vite-plugin-dts": "^4.5.4",
+    "vue": "^3.5.17",
+    "vue-tsc": "^2.2.0"
+  }
+}
