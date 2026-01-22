@@ -172,15 +172,34 @@ export function useWaterfall<T>(options: UseWaterfallOptions<T>) {
 
   // Update item height (called when image loads)
   // Accepts either index or stable key
+  // Uses threshold to avoid recalculating on sub-pixel changes
   function updateItemHeight(keyOrIndex: string | number, height: number) {
-    if (itemHeights.value.get(keyOrIndex) !== height) {
+    const currentHeight = itemHeights.value.get(keyOrIndex)
+    // Only update if height changed by more than 1px to avoid jitter
+    if (currentHeight === undefined || Math.abs(currentHeight - height) > 1) {
       itemHeights.value.set(keyOrIndex, height)
-      recalculate()
+      debouncedRecalculate()
     }
   }
 
-  // Force recalculate
+  // Debounced recalculate to batch multiple height updates
+  let recalculateTimeout: ReturnType<typeof setTimeout> | null = null
+  function debouncedRecalculate() {
+    if (recalculateTimeout) {
+      clearTimeout(recalculateTimeout)
+    }
+    recalculateTimeout = setTimeout(() => {
+      positions.value = calculatePositions()
+      recalculateTimeout = null
+    }, 16) // ~1 frame at 60fps
+  }
+
+  // Force recalculate (immediate)
   function recalculate() {
+    if (recalculateTimeout) {
+      clearTimeout(recalculateTimeout)
+      recalculateTimeout = null
+    }
     positions.value = calculatePositions()
   }
 

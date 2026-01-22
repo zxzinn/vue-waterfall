@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-01-22
+
+### Fixed
+
+- Fix infinite loop causing jitter/flickering when items are animated
+  - Added 1px threshold for height changes to ignore sub-pixel variations
+  - Added debounce (16ms) for batching multiple height updates
+
 ## [0.2.0] - 2026-01-22
 
 ### Changed
