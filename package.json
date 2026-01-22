@@ -1,7 +1,7 @@
 {
   "name": "@zxzinn/vue-waterfall",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A performant, flexible waterfall/masonry layout component for Vue 3",
   "author": "zxzinn",
   "license": "MIT",
