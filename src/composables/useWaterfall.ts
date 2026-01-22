@@ -9,6 +9,7 @@ export interface UseWaterfallOptions<T> {
   columns?: Ref<number | WaterfallBreakpoints | undefined>
   gap?: Ref<number>
   getItemSize?: (item: T, index: number) => WaterfallItemSize | null
+  getItemKey?: (item: T, index: number) => string | number
   ssrPlaceholderHeight?: number
 }
 
@@ -47,13 +48,15 @@ export function useWaterfall<T>(options: UseWaterfallOptions<T>) {
     columns = ref(undefined),
     gap = ref(16),
     getItemSize,
+    getItemKey = (_item: T, index: number) => index,
     ssrPlaceholderHeight = 200,
   } = options
 
   // Reactive state
   const containerWidth = ref(0)
   const positions = shallowRef<WaterfallItemPosition[]>([])
-  const itemHeights = ref<Map<number, number>>(new Map())
+  // Use stable keys to track heights (survives reordering/insertion)
+  const itemHeights = ref<Map<string | number, number>>(new Map())
   const isClient = ref(false)
 
   // Calculate column count based on mode
@@ -119,12 +122,13 @@ export function useWaterfall<T>(options: UseWaterfallOptions<T>) {
 
     for (let i = 0; i < itemList.length; i++) {
       const item = itemList[i]
+      const itemKey = getItemKey(item, i)
 
       // Get item height - priority: measured > getItemSize estimate > placeholder
       let itemHeight: number
 
-      // First, check if we have actual measured height
-      const measuredHeight = itemHeights.value.get(i)
+      // First, check if we have actual measured height (using stable key)
+      const measuredHeight = itemHeights.value.get(itemKey)
       if (measuredHeight !== undefined) {
         itemHeight = measuredHeight
       }
@@ -167,9 +171,10 @@ export function useWaterfall<T>(options: UseWaterfallOptions<T>) {
   }
 
   // Update item height (called when image loads)
-  function updateItemHeight(index: number, height: number) {
-    if (itemHeights.value.get(index) !== height) {
-      itemHeights.value.set(index, height)
+  // Accepts either index or stable key
+  function updateItemHeight(keyOrIndex: string | number, height: number) {
+    if (itemHeights.value.get(keyOrIndex) !== height) {
+      itemHeights.value.set(keyOrIndex, height)
       recalculate()
     }
   }

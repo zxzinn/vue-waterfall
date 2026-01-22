@@ -86,21 +86,23 @@ const {
   columns: toRef(() => props.columns),
   gap: toRef(() => props.gap),
   getItemSize: props.getItemSize,
+  getItemKey: props.getItemKey,
   ssrPlaceholderHeight: props.ssrPlaceholderHeight,
 })
 
-// Generate item style
+// Generate item style - use transform for GPU-accelerated animations
 function getItemStyle(position: WaterfallItemPosition) {
   const baseStyle: Record<string, string> = {
     position: 'absolute',
-    left: `${position.x}px`,
-    top: `${position.y}px`,
+    left: '0',
+    top: '0',
     width: `${position.width}px`,
+    transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
   }
 
   if (props.animate && isClient.value) {
-    baseStyle.transition = `transform ${props.animationDuration}ms ease, opacity ${props.animationDuration}ms ease`
-    baseStyle.transform = 'translate3d(0, 0, 0)' // GPU acceleration
+    baseStyle.transition = `transform ${props.animationDuration}ms ease-out, opacity ${props.animationDuration}ms ease-out`
+    baseStyle.willChange = 'transform'
   }
 
   return baseStyle
@@ -113,16 +115,18 @@ const containerStyle = computed(() => ({
   height: `${containerHeight.value}px`,
 }))
 
-// Track observers for cleanup
-const itemObservers = new Map<number, ResizeObserver>()
+// Track observers for cleanup (keyed by item key for stability)
+const itemObservers = new Map<string | number, ResizeObserver>()
 
 // Handle item mounted - always measure actual height for accuracy
-function handleItemMounted(index: number, el: HTMLElement | null) {
+function handleItemMounted(item: T, index: number, el: HTMLElement | null) {
   if (!el)
     return
 
+  const itemKey = props.getItemKey(item, index)
+
   // Cleanup previous observer if exists
-  const existingObserver = itemObservers.get(index)
+  const existingObserver = itemObservers.get(itemKey)
   if (existingObserver) {
     existingObserver.disconnect()
   }
@@ -131,12 +135,12 @@ function handleItemMounted(index: number, el: HTMLElement | null) {
   const observer = new ResizeObserver((entries) => {
     const entry = entries[0]
     if (entry) {
-      updateItemHeight(index, entry.contentRect.height)
+      updateItemHeight(itemKey, entry.contentRect.height)
     }
   })
 
   observer.observe(el)
-  itemObservers.set(index, observer)
+  itemObservers.set(itemKey, observer)
 }
 
 // Cleanup observers on unmount
@@ -162,7 +166,7 @@ defineExpose<WaterfallExpose>({
     <div
       v-for="(item, index) in items"
       :key="getItemKey(item, index)"
-      :ref="(el) => handleItemMounted(index, el as HTMLElement)"
+      :ref="(el) => handleItemMounted(item, index, el as HTMLElement)"
       class="waterfall-item"
       :style="getItemStyle(positions[index] || { x: 0, y: 0, width: actualColumnWidth, height: ssrPlaceholderHeight, column: 0 })"
     >

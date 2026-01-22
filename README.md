@@ -10,6 +10,7 @@ A performant, flexible waterfall/masonry layout component for Vue 3.
 
 - **Zero dependencies** - Only Vue 3 as peer dependency
 - **Performant** - Uses CSS transforms and GPU acceleration
+- **Smooth animations** - Items animate smoothly when positions change
 - **Flexible** - Multiple layout modes (fixed width, fixed columns, breakpoints)
 - **TypeScript** - Full type support with generics
 - **SSR Ready** - Works with Nuxt and other SSR frameworks
@@ -131,7 +132,7 @@ Breakpoints follow Tailwind CSS defaults:
 | `columns`              | `number \| Breakpoints` | -        | Fixed column count or breakpoint config |
 | `gap`                  | `number`                | `16`     | Gap between items in pixels             |
 | `getItemSize`          | `(item, index) => Size` | -        | Function to get item dimensions         |
-| `getItemKey`           | `(item, index) => Key`  | `index`  | Unique key getter                       |
+| `getItemKey`           | `(item, index) => string \| number` | `index`  | Unique key getter (important for animations) |
 | `animate`              | `boolean`               | `true`   | Enable transition animations            |
 | `animationDuration`    | `number`                | `300`    | Transition duration in ms               |
 | `ssrPlaceholderHeight` | `number`                | `200`    | Placeholder height for SSR              |
@@ -192,19 +193,14 @@ const {
   containerRef,
   columnWidth: ref(250),
   gap: ref(16),
+  getItemKey: (item) => item.id,
 })
 </script>
 ```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Feel free to open an issue or submit a PR.
 
 ## License
 
