@@ -73,6 +73,18 @@ export interface WaterfallProps<T = unknown> {
    * @default 200
    */
   ssrPlaceholderHeight?: number
+
+  /**
+   * Enable virtual scrolling - only render items in/near the viewport
+   * @default false
+   */
+  virtual?: boolean
+
+  /**
+   * Buffer in pixels above and below the viewport for virtual scrolling
+   * @default 500
+   */
+  virtualBuffer?: number
 }
 
 export interface WaterfallSlotProps<T = unknown> {
@@ -80,6 +92,12 @@ export interface WaterfallSlotProps<T = unknown> {
   index: number
   position: WaterfallItemPosition
   columnWidth: number
+}
+
+export interface WaterfallVisibleItem<T = unknown> {
+  item: T
+  index: number
+  position: WaterfallItemPosition
 }
 
 export interface WaterfallExpose {

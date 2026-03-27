@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { WaterfallBreakpoints, WaterfallItemPosition, WaterfallItemSize } from '../types'
+import type { WaterfallBreakpoints, WaterfallItemPosition, WaterfallItemSize, WaterfallVisibleItem } from '../types'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 export interface UseWaterfallOptions<T> {
@@ -11,6 +11,8 @@ export interface UseWaterfallOptions<T> {
   getItemSize?: (item: T, index: number) => WaterfallItemSize | null
   getItemKey?: (item: T, index: number) => string | number
   ssrPlaceholderHeight?: number
+  virtual?: Ref<boolean>
+  virtualBuffer?: Ref<number>
 }
 
 // Tailwind default breakpoints
@@ -50,6 +52,8 @@ export function useWaterfall<T>(options: UseWaterfallOptions<T>) {
     getItemSize,
     getItemKey = (_item: T, index: number) => index,
     ssrPlaceholderHeight = 200,
+    virtual = ref(false),
+    virtualBuffer = ref(500),
   } = options
 
   // Reactive state
@@ -247,19 +251,129 @@ export function useWaterfall<T>(options: UseWaterfallOptions<T>) {
     recalculate()
   })
 
+  // Virtual scrolling: track scroll position
+  const scrollTop = ref(0)
+  const viewportHeight = ref(0)
+  let scrollElement: HTMLElement | Window | null = null
+  let scrollRafId: number | null = null
+
+  function onScroll() {
+    if (scrollRafId !== null)
+      return
+    scrollRafId = requestAnimationFrame(() => {
+      scrollRafId = null
+      if (scrollElement === window) {
+        scrollTop.value = window.scrollY
+        viewportHeight.value = window.innerHeight
+      }
+      else if (scrollElement instanceof HTMLElement) {
+        scrollTop.value = scrollElement.scrollTop
+        viewportHeight.value = scrollElement.clientHeight
+      }
+    })
+  }
+
+  function findScrollParent(el: HTMLElement): HTMLElement | Window {
+    let parent = el.parentElement
+    while (parent) {
+      const overflow = getComputedStyle(parent).overflowY
+      if (overflow === 'auto' || overflow === 'scroll') {
+        return parent
+      }
+      parent = parent.parentElement
+    }
+    return window
+  }
+
+  function setupScrollListener() {
+    if (!containerRef.value || !virtual.value)
+      return
+    scrollElement = findScrollParent(containerRef.value)
+    scrollElement.addEventListener('scroll', onScroll, { passive: true })
+    // Initial values
+    onScroll()
+  }
+
+  function cleanupScrollListener() {
+    if (scrollElement) {
+      scrollElement.removeEventListener('scroll', onScroll)
+      scrollElement = null
+    }
+    if (scrollRafId !== null) {
+      cancelAnimationFrame(scrollRafId)
+      scrollRafId = null
+    }
+  }
+
+  // Visible items for virtual scrolling
+  const visibleItems = computed((): WaterfallVisibleItem<T>[] => {
+    if (!virtual.value || positions.value.length === 0) {
+      // Non-virtual mode: return all items
+      return items.value.map((item, index) => ({
+        item,
+        index,
+        position: positions.value[index] || { x: 0, y: 0, width: actualColumnWidth.value, height: ssrPlaceholderHeight, column: 0 },
+      }))
+    }
+
+    const buffer = virtualBuffer.value
+    // Calculate container's offset from scroll parent
+    let containerOffset = 0
+    if (containerRef.value) {
+      if (scrollElement === window) {
+        containerOffset = containerRef.value.getBoundingClientRect().top + window.scrollY
+      }
+      else if (scrollElement instanceof HTMLElement) {
+        containerOffset = containerRef.value.offsetTop - scrollElement.offsetTop
+      }
+    }
+
+    const viewTop = scrollTop.value - containerOffset - buffer
+    const viewBottom = scrollTop.value - containerOffset + viewportHeight.value + buffer
+
+    const result: WaterfallVisibleItem<T>[] = []
+    for (let i = 0; i < positions.value.length; i++) {
+      const pos = positions.value[i]
+      const itemTop = pos.y
+      const itemBottom = pos.y + pos.height
+
+      // Item is visible if it overlaps with the viewport range
+      if (itemBottom >= viewTop && itemTop <= viewBottom) {
+        result.push({
+          item: items.value[i],
+          index: i,
+          position: pos,
+        })
+      }
+    }
+
+    return result
+  })
+
   // Lifecycle
   onMounted(() => {
     isClient.value = true
     setupResizeObserver()
+    setupScrollListener()
     recalculate()
   })
 
   onUnmounted(() => {
     cleanupResizeObserver()
+    cleanupScrollListener()
+  })
+
+  // Re-setup scroll listener when virtual mode changes
+  watch(virtual, (enabled) => {
+    cleanupScrollListener()
+    if (enabled) {
+      setupScrollListener()
+    }
   })
 
   return {
     positions,
+    visibleItems,
     columnCount,
     actualColumnWidth,
     containerHeight,

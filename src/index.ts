@@ -12,4 +12,5 @@ export type {
   WaterfallItemSize,
   WaterfallProps,
   WaterfallSlotProps,
+  WaterfallVisibleItem,
 } from './types'

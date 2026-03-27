@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T">
 import type { WaterfallBreakpoints, WaterfallExpose, WaterfallItemPosition, WaterfallItemSize } from '../types'
-import { computed, onUnmounted, ref, toRef } from 'vue'
+import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 import { useWaterfall } from '../composables/useWaterfall'
 
 const props = withDefaults(defineProps<{
@@ -49,6 +49,16 @@ const props = withDefaults(defineProps<{
    * SSR placeholder height when dimensions are unknown
    */
   ssrPlaceholderHeight?: number
+
+  /**
+   * Enable virtual scrolling - only render items in/near the viewport
+   */
+  virtual?: boolean
+
+  /**
+   * Buffer in pixels above and below the viewport for virtual scrolling
+   */
+  virtualBuffer?: number
 }>(), {
   columnWidth: 250,
   columns: undefined,
@@ -58,6 +68,8 @@ const props = withDefaults(defineProps<{
   animate: true,
   animationDuration: 300,
   ssrPlaceholderHeight: 200,
+  virtual: false,
+  virtualBuffer: 500,
 })
 
 defineSlots<{
@@ -73,6 +85,7 @@ const containerRef = ref<HTMLElement | null>(null)
 
 const {
   positions,
+  visibleItems,
   columnCount,
   actualColumnWidth,
   containerHeight,
@@ -88,6 +101,8 @@ const {
   getItemSize: props.getItemSize,
   getItemKey: props.getItemKey,
   ssrPlaceholderHeight: props.ssrPlaceholderHeight,
+  virtual: toRef(() => props.virtual),
+  virtualBuffer: toRef(() => props.virtualBuffer),
 })
 
 // Generate item style - use transform for GPU-accelerated animations
@@ -143,6 +158,23 @@ function handleItemMounted(item: T, index: number, el: HTMLElement | null) {
   itemObservers.set(itemKey, observer)
 }
 
+// Cleanup stale observers when visible items change (virtual mode)
+function cleanupStaleObservers() {
+  if (!props.virtual)
+    return
+  const visibleKeys = new Set(visibleItems.value.map(v => props.getItemKey(v.item, v.index)))
+  for (const [key, observer] of itemObservers) {
+    if (!visibleKeys.has(key)) {
+      observer.disconnect()
+      itemObservers.delete(key)
+    }
+  }
+}
+
+watch(visibleItems, () => {
+  cleanupStaleObservers()
+})
+
 // Cleanup observers on unmount
 onUnmounted(() => {
   itemObservers.forEach(observer => observer.disconnect())
@@ -164,16 +196,16 @@ defineExpose<WaterfallExpose>({
     :style="containerStyle"
   >
     <div
-      v-for="(item, index) in items"
+      v-for="{ item, index, position } in visibleItems"
       :key="getItemKey(item, index)"
       :ref="(el) => handleItemMounted(item, index, el as HTMLElement)"
       class="waterfall-item"
-      :style="getItemStyle(positions[index] || { x: 0, y: 0, width: actualColumnWidth, height: ssrPlaceholderHeight, column: 0 })"
+      :style="getItemStyle(position)"
     >
       <slot
         :item="item"
         :index="index"
-        :position="positions[index] || { x: 0, y: 0, width: actualColumnWidth, height: ssrPlaceholderHeight, column: 0 }"
+        :position="position"
         :column-width="actualColumnWidth"
       />
     </div>
